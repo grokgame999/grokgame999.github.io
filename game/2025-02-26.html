@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>星際資源掠奪者</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #1a1a2e;
+            color: white;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        #game-container {
+            text-align: center;
+            position: relative;
+            width: 1000px;
+            height: 700px;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+            font-size: 14px;
+        }
+        button {
+            padding: 8px 16px;
+            margin: 3px;
+            background-color: #e94560;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        button:hover {
+            background-color: #ff6b6b;
+        }
+        button:disabled {
+            background-color: #666666;
+            cursor: not-allowed;
+        }
+
+        /* 事件日誌框 */
+        #event-log {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            width: 980px; /* 恢復原始寬度 */
+            height: 100px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid #87ceeb;
+            padding: 5px;
+            overflow-y: auto;
+            font-size: 12px;
+            z-index: 10;
+        }
+        #event-log p {
+            margin: 3px 0;
+        }
+        #event-log .gain { color: #00ff00; }
+        #event-log .loss { color: #ff8c00; }
+        #event-log .info { color: #d3d3d3; }
+
+        /* 背景星空與星雲 */
+        #game-container::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 1px, transparent 1px);
+            background-size: 20px 20px;
+            opacity: 0.8;
+            animation: twinkle 5s infinite;
+        }
+        #game-container::after {
+            content: '';
+            position: absolute;
+            width: 120%;
+            height: 120%;
+            background: radial-gradient(circle, rgba(135, 206, 235, 0.2), transparent 70%);
+            top: -10%;
+            left: -10%;
+            animation: nebula 15s infinite ease-in-out;
+        }
+
+        /* 星球 */
+        .planet {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 40px rgba(135, 206, 235, 0.7), inset 0 0 15px rgba(0, 0, 0, 0.5);
+            cursor: pointer;
+            animation: rotatePlanet 20s infinite linear;
+            z-index: 5;
+            overflow: hidden;
+        }
+        .planet::before {
+            content: '';
+            position: absolute;
+            width: 90px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            top: 35%;
+            left: 15%;
+            transform: rotate(15deg);
+            filter: blur(8px);
+        }
+        .planet::after {
+            content: '';
+            position: absolute;
+            width: 280px;
+            height: 280px;
+            border: 3px dashed rgba(135, 206, 235, 0.4);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(45deg);
+            animation: rotateRing 30s infinite linear reverse;
+        }
+        .planet .texture {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 10%, transparent 20%);
+            background-size: 20px 20px;
+            opacity: 0.5;
+            animation: textureShift 10s infinite linear;
+        }
+
+        /* 飛船（無人機） */
+        .spaceship {
+            width: 50px;
+            height: 25px;
+            position: absolute;
+            border-radius: 50% 20% 20% 50%;
+            transform-origin: center;
+            z-index: 4;
+            box-shadow: 0 0 5px rgba(255, 255, 255, 0.5), inset 0 0 3px rgba(0, 0, 0, 0.5);
+            animation: orbit var(--duration) infinite linear, spawn 0.5s ease-out;
+            cursor: pointer;
+        }
+        .spaceship::before {
+            content: '';
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            top: 50%;
+            left: 10px;
+            transform: translateY(-50%);
+            box-shadow: 0 0 2px rgba(255, 255, 255, 0.5);
+        }
+        .spaceship::after {
+            content: '';
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            top: 50%;
+            right: -8px;
+            transform: translateY(-50%);
+            animation: flame 0.3s infinite alternate;
+        }
+        .spaceship .flame-tail {
+            position: absolute;
+            width: 20px;
+            height: 5px;
+            background: linear-gradient(to right, transparent, var(--flame-color));
+            top: 50%;
+            right: -20px;
+            transform: translateY(-50%);
+            opacity: 0.7;
+            animation: flameTail 0.5s infinite alternate;
+        }
+
+        /* 粒子效果 */
+        .particle {
+            width: 8px;
+            height: 8px;
+            background: #87ceeb;
+            border-radius: 50%;
+            position: absolute;
+            pointer-events: none;
+            animation: scatter 0.5s ease-out forwards;
+            z-index: 6;
+        }
+
+        /* 流星雨 */
+        .meteor {
+            width: 15px;
+            height: 4px;
+            background: white;
+            position: absolute;
+            transform: rotate(45deg);
+            animation: meteorFall 1s linear forwards;
+            z-index: 3;
+        }
+
+        /* 敵人襲擊 */
+        .enemy {
+            width: 40px;
+            height: 40px;
+            background: radial-gradient(circle, #ff0000, #8b0000);
+            border-radius: 50%;
+            position: absolute;
+            animation: enemyMove 2s linear forwards;
+            z-index: 4;
+            cursor: pointer;
+        }
+
+        /* 動畫 */
+        @keyframes rotatePlanet {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        @keyframes rotateRing {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        @keyframes scatter {
+            0% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(2) translate(var(--dx), var(--dy)); }
+        }
+        @keyframes orbit {
+            0% { transform: translate(-50%, -50%) rotate(0deg) translateX(var(--radius)) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg) translateX(var(--radius)) rotate(-360deg); }
+        }
+        @keyframes flame {
+            0% { transform: translateY(-50%) scale(1); }
+            100% { transform: translateY(-50%) scale(1.3); }
+        }
+        @keyframes flameTail {
+            0% { width: 20px; opacity: 0.7; }
+            100% { width: 30px; opacity: 0.3; }
+        }
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 0.4; }
+        }
+        @keyframes nebula {
+            0% { transform: translate(-10%, -10%) scale(1); opacity: 0.2; }
+            50% { transform: translate(-5%, -5%) scale(1.1); opacity: 0.3; }
+            100% { transform: translate(-10%, -10%) scale(1); opacity: 0.2; }
+        }
+        @keyframes textureShift {
+            0% { background-position: 0 0; }
+            100% { background-position: 20px 20px; }
+        }
+        @keyframes meteorFall {
+            0% { opacity: 1; transform: translate(var(--startX), var(--startY)) rotate(45deg); }
+            100% { opacity: 0; transform: translate(var(--endX), var(--endY)) rotate(45deg); }
+        }
+        @keyframes enemyMove {
+            0% { opacity: 1; transform: translate(var(--startX), var(--startY)); }
+            100% { opacity: 0; transform: translate(500px, 350px); }
+        }
+        @keyframes growEffect {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        @keyframes spawn {
+            0% { transform: translate(-50%, -50%) scale(0); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div class="planet stage-1" onclick="collectStardust(event)"><div class="texture"></div></div>
+        <div id="drones-container"></div>
+        <div id="event-log"></div>
+        <div id="ui">
+            <p>星塵: <span id="stardust">0</span></p>
+            <p>階段: <span id="stage">1</span> (進度: <span id="stageProgress">0</span>/<span id="stageGoal">1000</span>)</p>
+            <p>無人機: <span id="drones">0</span> (效率: <span id="droneEff">1</span>)</p>
+            <p>點擊收益: <span id="clickEff">0.5</span> (連擊: <span id="clickCombo">0</span>)</p>
+            <p>任務倒計時: <span id="taskTimer">無</span></p>
+            <button id="droneButton" onclick="upgradeDrone()">升級無人機 (<span id="droneCost">10</span>)</button>
+            <button onclick="upgradeDroneEff()">提升效率 (<span id="droneEffCost">50</span>)</button>
+            <button onclick="upgradeClickEff()">提升點擊 (<span id="clickEffCost">25</span>)</button>
+        </div>
+        <audio id="clickSound" src="https://www.soundjay.com/buttons/beep-01a.mp3" preload="auto"></audio>
+        <audio id="upgradeSound" src="https://www.soundjay.com/mechanical/click-01.mp3" preload="auto"></audio>
+        <audio id="meteorSound" src="https://www.soundjay.com/nature/rain-01.mp3" preload="auto"></audio>
+        <audio id="enemySound" src="https://www.soundjay.com/mechanical/alarm-01.mp3" preload="auto"></audio>
+    </div>
+    <script src="2025-02-26.js"></script>
+</body>
+</html>
