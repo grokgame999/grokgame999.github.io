@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>數字猜謎 - 2025年2月26日</title>
+    <style>
+        body { font-family: Arial; text-align: center; padding: 20px; background: #f0f0f0; }
+        h1 { color: #e74c3c; }
+        input, button { padding: 10px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>數字猜謎</h1>
+    <p>猜一個 1-100 的數字，你有 10 次機會！</p>
+    <input type="number" id="guess" min="1" max="100">
+    <button onclick="checkGuess()">猜一下</button>
+    <p id="message"></p>
+    <script>
+        const answer = Math.floor(Math.random() * 100) + 1;
+        let attempts = 10;
+
+        function checkGuess() {
+            const guess = Number(document.getElementById("guess").value);
+            const message = document.getElementById("message");
+            attempts--;
+            if (guess === answer) {
+                message.textContent = "恭喜！你猜對了！";
+            } else if (guess < answer) {
+                message.textContent = `太小了！剩下 ${attempts} 次機會。`;
+            } else {
+                message.textContent = `太大了！剩下 ${attempts} 次機會。`;
+            }
+            if (attempts === 0) {
+                message.textContent = `遊戲結束，正確答案是 ${answer}。`;
+            }
+        }
+    </script>
+</body>
+</html>
