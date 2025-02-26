@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>迷宮探險 - 2025年2月25日</title>
+    <style>
+        body { font-family: Arial; text-align: center; padding: 20px; background: #f0f0f0; }
+        canvas { border: 1px solid #333; background: #fff; }
+        h1 { color: #e74c3c; }
+        p { color: #555; }
+    </style>
+</head>
+<body>
+    <h1>迷宮探險</h1>
+    <p>用方向鍵移動藍色方塊到紅色出口！</p>
+    <canvas id="game" width="400" height="400"></canvas>
+    <script>
+        const canvas = document.getElementById("game");
+        const ctx = canvas.getContext("2d");
+        let player = { x: 50, y: 50, size: 20 };
+        const exit = { x: 350, y: 350, size: 20 };
+
+        function draw() {
+            ctx.fillStyle = "#ddd";
+            ctx.fillRect(0, 0, 400, 400);
+            ctx.fillStyle = "blue";
+            ctx.fillRect(player.x, player.y, player.size, player.size);
+            ctx.fillStyle = "red";
+            ctx.fillRect(exit.x, exit.y, exit.size, exit.size);
+        }
+        draw();
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "ArrowUp" && player.y > 0) player.y -= 10;
+            if (e.key === "ArrowDown" && player.y < 380) player.y += 10;
+            if (e.key === "ArrowLeft" && player.x > 0) player.x -= 10;
+            if (e.key === "ArrowRight" && player.x < 380) player.x += 10;
+            draw();
+        });
+    </script>
+</body>
+</html>
