@@ -1,0 +1,206 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f0e4d7;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+.game-container {
+    text-align: center;
+    background-color: #fff;
+    padding: 1.25rem;
+    border-radius: 0.625rem;
+    box-shadow: 0 0 0.625rem rgba(0, 0, 0, 0.2);
+    max-width: 50rem;
+    width: auto;
+    position: relative; /* 為特效提供定位基準 */
+}
+
+h1 {
+    color: #4a2c2a;
+    margin: 0 0 1.25rem 0;
+}
+
+#resources {
+    font-size: 1.5rem;
+    margin: 1.25rem 0;
+    color: #d4a017;
+    padding: 0.625rem;
+    overflow: visible;
+}
+
+#resources span {
+    display: inline;
+    margin-right: 1.875rem;
+}
+
+#gold {
+    display: inline !important;
+    min-width: 3.125rem;
+}
+
+#gold.flash {
+    animation: flash 0.5s infinite;
+}
+
+@keyframes flash {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+#rare-items, #collectibles {
+    margin: 1.25rem 0;
+    text-align: left;
+    color: #4a2c2a;
+}
+
+.item-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.625rem;
+}
+
+.item-row p {
+    margin: 0;
+    width: 18%;
+    text-align: center;
+}
+
+#click-area {
+    width: 12.5rem;
+    height: 12.5rem;
+    background-color: #8b5a2b;
+    border-radius: 50%;
+    margin: 1.25rem auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-size: 1.25rem;
+    cursor: pointer;
+    transition: transform 0.1s;
+    user-select: none;
+}
+
+#click-area:hover {
+    transform: scale(1.05);
+}
+
+#click-area:active {
+    transform: scale(0.95);
+    background-color: #a6713c;
+}
+
+@keyframes coinJump { 0% { transform: translateY(0) scale(1); opacity: 1; } 50% { transform: translateY(-1.875rem) scale(1.2); opacity: 0.8; } 100% { transform: translateY(-3.125rem) scale(1); opacity: 0; } }
+@keyframes gemSpin { 0% { transform: rotate(0deg) scale(1); opacity: 1; } 50% { transform: rotate(180deg) scale(1.3); opacity: 0.9; } 100% { transform: rotate(360deg) scale(1) translateY(-3.125rem); opacity: 0; } }
+@keyframes glow { 0% { opacity: 1; box-shadow: 0 0 0.3125rem #FFD700; } 50% { opacity: 0.7; box-shadow: 0 0 1.25rem #FFD700; transform: translateY(-1.875rem) scale(1.1); } 100% { opacity: 0; box-shadow: 0 0 0.3125rem #FFD700; transform: translateY(-3.125rem); } }
+@keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.8; box-shadow: 0 0 1.25rem #FF4500; } 100% { transform: scale(1); opacity: 0; } }
+@keyframes fadeUp { 0% { opacity: 1; } 50% { opacity: 0.7; transform: translateY(-1.875rem) scale(1.1); } 100% { opacity: 0; transform: translateY(-3.125rem); } }
+@keyframes buttonGlow { 0% { box-shadow: 0 0 0.3125rem #d4a017; } 50% { box-shadow: 0 0 1.25rem #d4a017; } 100% { box-shadow: 0 0 0.3125rem #d4a017; } }
+@keyframes chestGlow { 0% { box-shadow: 0 0 0.3125rem #FFD700; } 50% { box-shadow: 0 0 1.25rem #FFD700; } 100% { box-shadow: 0 0 0.3125rem #FFD700; } }
+
+.coin-effect { position: absolute; color: #d4a017; font-size: 1.25rem; pointer-events: none; animation: coinJump 0.7s ease-out forwards; z-index: 10; }
+.gem-effect { position: absolute; color: #00CED1; font-size: 1.25rem; pointer-events: none; animation: gemSpin 1s ease-out forwards; z-index: 10; text-shadow: 0 0 0.3125rem #00CED1; }
+.legendary-effect { position: absolute; color: #FFD700; font-size: 1.25rem; pointer-events: none; animation: glow 1.2s ease-out forwards; z-index: 10; text-shadow: 0 0 0.625rem #FFD700; }
+.crown-effect { position: absolute; color: #FF4500; font-size: 1.25rem; pointer-events: none; animation: pulse 0.9s ease-out forwards; z-index: 10; text-shadow: 0 0 0.625rem #FF4500; }
+.compass-effect { position: absolute; color: #DAA520; font-size: 1.25rem; pointer-events: none; animation: fadeUp 0.8s ease-out forwards; z-index: 10; text-shadow: 0 0 0.3125rem #DAA520; }
+.scroll-effect { position: absolute; color: #8A2BE2; font-size: 1.25rem; pointer-events: none; animation: glow 1.2s ease-out forwards; z-index: 10; text-shadow: 0 0 0.625rem #8A2BE2; }
+.ring-effect { position: absolute; color: #00FF7F; font-size: 1.25rem; pointer-events: none; animation: pulse 0.9s ease-out forwards; z-index: 10; text-shadow: 0 0 0.625rem #00FF7F; }
+.scale-effect { position: absolute; color: #FF69B4; font-size: 1.25rem; pointer-events: none; animation: fadeUp 0.8s ease-out forwards; z-index: 10; text-shadow: 0 0 0.3125rem #FF69B4; }
+.blade-effect { position: absolute; color: #4682B4; font-size: 1.25rem; pointer-events: none; animation: gemSpin 1s ease-out forwards; z-index: 10; text-shadow: 0 0 0.625rem #4682B4; }
+.hourglass-effect { position: absolute; color: #FFA500; font-size: 1.25rem; pointer-events: none; animation: glow 1.2s ease-out forwards; z-index: 10; text-shadow: 0 0 0.625rem #FFA500; }
+.orb-effect { position: absolute; color: #FF0000; font-size: 1.25rem; pointer-events: none; animation: pulse 0.9s ease-out forwards; z-index: 10; text-shadow: 0 0 0.625rem #FF0000; }
+.heart-effect { position: absolute; color: #00BFFF; font-size: 1.25rem; pointer-events: none; animation: fadeUp 0.8s ease-out forwards; z-index: 10; text-shadow: 0 0 0.3125rem #00BFFF; }
+
+.upgrades button {
+    padding: 0.625rem 1.25rem;
+    margin: 0.3125rem;
+    background-color: #4a2c2a;
+    color: white;
+    border: none;
+    border-radius: 0.3125rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.upgrades button:hover {
+    background-color: #6b3e3a;
+}
+
+#specialUpgradeBtn.glow {
+    animation: buttonGlow 1s ease-in-out;
+}
+
+#worker-count {
+    margin-top: 1.25rem;
+    font-size: 1.125rem;
+    color: #4a2c2a;
+}
+
+#event {
+    margin: 1.25rem 0;
+    padding: 0.625rem;
+    background-color: #f9e4b7;
+    border-radius: 0.3125rem;
+}
+
+#event-button {
+    background-color: #d4a017;
+    color: white;
+    border: none;
+    padding: 0.3125rem 0.625rem;
+    border-radius: 0.3125rem;
+    cursor: pointer;
+}
+
+#achievements {
+    margin-top: 1.25rem;
+    text-align: left;
+    color: #4a2c2a;
+}
+
+#achievement-list {
+    list-style: none;
+    padding: 0;
+}
+
+.progress-bar {
+    width: 100%;
+    background-color: #ddd;
+    height: 0.625rem;
+    margin-top: 0.3125rem;
+    border-radius: 0.3125rem;
+}
+
+.progress {
+    height: 100%;
+    background-color: #4a2c2a;
+    border-radius: 0.3125rem;
+}
+
+#mystical-box {
+    margin: 1.25rem 0;
+    padding: 0.625rem;
+    background-color: #f0e4d7;
+    border: 0.125rem dashed #FFD700;
+    border-radius: 0.3125rem;
+    animation: chestGlow 1.5s ease-in-out infinite;
+}
+
+#mystical-box button {
+    background-color: #FFD700;
+    color: #4a2c2a;
+    border: none;
+    padding: 0.3125rem 0.625rem;
+    border-radius: 0.3125rem;
+    cursor: pointer;
+    margin-top: 0.625rem;
+}
+
+#mystical-box button:hover {
+    background-color: #DAA520;
+}
