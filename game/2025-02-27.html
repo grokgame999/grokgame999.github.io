@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>無盡寶藏獵人</title>
+    <link rel="stylesheet" href="2025-02-27.css">
+</head>
+<body>
+    <div class="game-container">
+        <h1>無盡寶藏獵人</h1>
+        <div id="resources">
+            <span>金幣: <span id="gold">0</span></span>
+            <span style="margin-left: 20px;">寶石: <span id="gems">0</span></span>
+        </div>
+        <div id="rare-items">
+            <h3>稀有寶物</h3>
+            <div class="item-row">
+                <p>傳說鎬: <span id="legendaryPickaxe">0</span></p>
+                <p>寶石王冠: <span id="gemCrown">0</span></p>
+                <p>黃金羅盤: <span id="goldenCompass">0</span></p>
+                <p>神秘卷軸: <span id="mysticScroll">0</span></p>
+                <p>星辰戒指: <span id="starRing">0</span></p>
+            </div>
+            <div class="item-row">
+                <p>龍鱗護符: <span id="dragonScale">0</span></p>
+                <p>精靈之刃: <span id="elfBlade">0</span></p>
+                <p>時間沙漏: <span id="timeHourglass">0</span></p>
+                <p>火焰寶珠: <span id="fireOrb">0</span></p>
+                <p>冰霜之心: <span id="iceHeart">0</span></p>
+            </div>
+        </div>
+        <div id="collectibles">
+            <h3>收藏品</h3>
+            <p>神聖之光: <span id="holyLight">0</span> (提升點擊效率5%)</p>
+        </div>
+        <div id="click-area" onclick="dig()">點擊挖掘</div>
+        <div class="upgrades">
+            <button onclick="upgradeTool()">升級工具 (成本: <span id="toolCost">10</span>)</button>
+            <button onclick="hireWorker()">雇用工人 (成本: <span id="workerCost">50</span>)</button>
+            <button id="specialUpgradeBtn" onclick="buySpecialUpgrade()">特殊升級 (10 寶石 - 工人效率加倍，目前: <span id="workerEfficiency">1</span>)</button>
+        </div>
+        <div id="worker-count">工人數量: <span id="workers">0</span></div>
+        <div id="event" style="display: none;">
+            <p id="event-text"></p>
+            <button id="event-button" onclick="claimEventReward()">領取</button>
+        </div>
+        <div id="achievements">
+            <h3>成就</h3>
+            <ul id="achievement-list"></ul>
+        </div>
+        <div id="mystical-box" style="display: none;">
+            <p id="mystical-text"></p>
+            <button onclick="openMysticalBox()">開啟神秘寶箱</button>
+        </div>
+    </div>
+    <script src="2025-02-27.js"></script>
+</body>
+</html>
