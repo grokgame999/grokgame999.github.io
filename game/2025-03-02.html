@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>時空遺跡獵人</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(45deg, #1a1a1a, #2a2a2a);
+            color: #fff;
+            text-align: center;
+            margin: 0;
+            text-shadow: 1px 1px 2px #000;
+        }
+        #game-container {
+            width: 900px;
+            max-width: 100%;
+            margin: 20px auto;
+            display: flex;
+            gap: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: inset 0 0 10px #333;
+            position: relative;
+        }
+        #player-stats, #event-info {
+            width: 250px;
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        #event-info {
+            order: 2;
+        }
+        #game-display {
+            flex: 1;
+            background: #1f1f1f;
+            padding: 20px;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            background: linear-gradient(#555, #333);
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        button:hover:not(:disabled) {
+            background: linear-gradient(#777, #555);
+            transform: scale(1.05);
+        }
+        button:disabled {
+            background: #222;
+            cursor: not-allowed;
+        }
+        #message {
+            font-size: 18px;
+            margin: 0;
+        }
+        .shake {
+            animation: shake 1s;
+        }
+        .trap-flash {
+            animation: flash 0.5s;
+        }
+        #map {
+            width: 220px;
+            height: 220px;
+            background: #333;
+            margin: 0 auto;
+            position: relative;
+            border: 2px solid #555;
+            background-image: linear-gradient(45deg, #444 25%, transparent 25%, transparent 75%, #444 75%, #444),
+                              linear-gradient(45deg, #444 25%, transparent 25%, transparent 75%, #444 75%, #444);
+            background-size: 22px 22px;
+        }
+        .grid {
+            position: absolute;
+            width: 22px;
+            height: 22px;
+        }
+        .explored { background: rgba(102, 102, 102, 0.8); }
+        .entrance { background: radial-gradient(circle, #5f5, #3a3); }
+        #player-pos {
+            width: 22px;
+            height: 22px;
+            background: radial-gradient(circle, #ff5555, #aa0000);
+            position: absolute;
+            border-radius: 50%;
+            z-index: 2;
+            transition: all 0.2s;
+        }
+        #event-details {
+            margin-top: 10px;
+        }
+        #enemy-stats {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0;
+        }
+        #enemy-icon {
+            width: 30px;
+            height: 30px;
+            background: radial-gradient(circle, #fff 40%, #ccc 60%);
+            border-radius: 50%;
+            clip-path: polygon(50% 0%, 70% 40%, 60% 70%, 40% 70%, 30% 40%);
+            animation: slide-in 0.5s ease-out;
+        }
+        #weapon-icon {
+            width: 20px;
+            height: 40px;
+            display: inline-block;
+            vertical-align: middle;
+            background: #aaa; /* 預設顏色 */
+            clip-path: polygon(40% 0%, 60% 0%, 60% 70%, 80% 100%, 20% 100%, 40% 70%);
+        }
+        .potion-icon {
+            width: 16px;
+            height: 24px;
+            display: inline-block;
+            vertical-align: middle;
+            background: #0f0; /* 綠色藥瓶 */
+            border: 2px solid #fff;
+            border-radius: 4px 4px 0 0;
+            clip-path: polygon(20% 0%, 80% 0%, 80% 70%, 60% 100%, 40% 100%, 20% 70%);
+            margin-right: 5px;
+        }
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            10% { transform: translateX(-10px); }
+            20% { transform: translateX(10px); }
+            30% { transform: translateX(-10px); }
+            40% { transform: translateX(10px); }
+            50% { transform: translateX(-10px); }
+            60% { transform: translateX(10px); }
+            70% { transform: translateX(-10px); }
+            80% { transform: translateX(10px); }
+            90% { transform: translateX(-10px); }
+            100% { transform: translateX(0); }
+        }
+        @keyframes flash {
+            0% { box-shadow: inset 0 0 20px #f00; }
+            50% { box-shadow: inset 0 0 40px #f00; }
+            100% { box-shadow: inset 0 0 10px #333; }
+        }
+        @keyframes slide-in {
+            0% { transform: translateY(-50px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="player-stats">
+            <h2>角色狀態</h2>
+            <p>層數: <span id="floor">1</span></p>
+            <p>等級: <span id="level">1</span></p>
+            <p>經驗: <span id="exp">0</span>/<span id="exp-needed">50</span></p>
+            <p>生命: <span id="hp">100</span>/<span id="max-hp">100</span></p>
+            <p>攻擊力: <span id="attack">10</span></p>
+            <p>金幣: <span id="gold">0</span></p>
+            <p>武器: <span id="weapon">無</span> <span id="weapon-icon" style="display:none;"></span></p>
+            <p><span class="potion-icon"></span>補品: <span id="potions">0</span> <button id="use-potion-btn" onclick="usePotion()">使用補品</button></p>
+        </div>
+        <div id="game-display">
+            <h2>遊戲畫面</h2>
+            <p id="message">歡迎來到時空遺跡！用WASD移動觸發事件。</p>
+            <div id="map"><div id="player-pos"></div></div>
+            <div>
+                <button id="attack-btn" onclick="attack()" disabled>攻擊 (滑鼠點擊)</button>
+                <button id="restart-btn" onclick="restart()" style="display:none;">重新開始</button>
+            </div>
+        </div>
+        <div id="event-info">
+            <h2>事件資訊</h2>
+            <div id="event-details"></div>
+        </div>
+    </div>
+
+    <script>
+        let player = { floor: 1, level: 1, exp: 0, expNeeded: 50, hp: 100, maxHp: 100, attack: 10, gold: 0, weapon: '無', weaponBonus: 0, x: 0, y: 0, potions: 0 };
+        let enemy = null;
+        let gameOver = false;
+        let treasureFound = false;
+        let explored = Array(10).fill().map(() => Array(10).fill(false));
+        let entrance = { x: Math.floor(Math.random() * 10), y: Math.floor(Math.random() * 10) };
+        let traps = [];
+        let treasure = {};
+        let merchant = null; // 初始為null，100%生成
+        let monsters = []; // 儲存怪獸位置
+        let isAtMerchant = false; // 新增標記玩家是否在商人位置
+
+        // 初始化地圖與特殊格子
+        function initMap() {
+            const map = document.getElementById('map');
+            map.innerHTML = '<div id="player-pos"></div>';
+            traps = [];
+            treasure = {};
+            monsters = [];
+            // 100%機率生成1個商人
+            merchant = getRandomPosition();
+            if (!merchant) {
+                console.warn('無法生成神秘商人，位置無效');
+                return; // 無效位置時跳出
+            }
+            isAtMerchant = false; // 重置商人位置標記
+            let available = [];
+            for (let y = 0; y < 10; y++) {
+                for (let x = 0; x < 10; x++) {
+                    if ((x !== entrance.x || y !== entrance.y) && 
+                        (x !== merchant.x || y !== merchant.y)) {
+                        available.push({ x, y });
+                    }
+                    const grid = document.createElement('div');
+                    grid.className = 'grid';
+                    grid.style.left = x * 22 + 'px';
+                    grid.style.top = y * 22 + 'px';
+                    if (explored[y][x]) grid.classList.add('explored');
+                    if (x === entrance.x && y === entrance.y) grid.classList.add('entrance');
+                    map.appendChild(grid);
+                }
+            }
+            // 確保至少有7個可用格子，否則跳過生成
+            if (available.length < 7) {
+                traps = [];
+                treasure = {};
+                monsters = [];
+                merchant = null; // 無足夠空間，取消所有事件
+                console.warn('可用格子不足，取消事件生成');
+                return;
+            }
+            // 隨機選5個陷阱
+            for (let i = 0; i < 5; i++) {
+                if (available.length === 0) break;
+                const idx = Math.floor(Math.random() * available.length);
+                traps.push(available[idx]);
+                available.splice(idx, 1);
+            }
+            // 選1個寶箱
+            if (available.length > 0) {
+                const treasureIdx = Math.floor(Math.random() * available.length);
+                treasure = available[treasureIdx];
+                available.splice(treasureIdx, 1);
+            }
+            // 隨機選2個怪獸位置
+            for (let i = 0; i < 2; i++) {
+                if (available.length === 0) break;
+                const idx = Math.floor(Math.random() * available.length);
+                monsters.push(available[idx]);
+                available.splice(idx, 1);
+            }
+        }
+
+        // 隨機生成位置（確保不與其他事件重疊）
+        function getRandomPosition() {
+            let x, y, attempts = 0, maxAttempts = 50;
+            do {
+                x = Math.floor(Math.random() * 10);
+                y = Math.floor(Math.random() * 10);
+                attempts++;
+                if (attempts > maxAttempts) {
+                    console.warn('無法找到有效位置，取消商人生成');
+                    return null; // 嘗試多次後放棄
+                }
+            } while ((x === entrance.x && y === entrance.y) || 
+                     traps.some(t => t.x === x && t.y === y) || 
+                     (treasure && treasure.x === x && treasure.y === y) || 
+                     monsters.some(m => m.x === x && m.y === y));
+            return { x, y };
+        }
+
+        // 更新玩家狀態
+        function updateStats() {
+            document.getElementById('floor').innerText = player.floor;
+            document.getElementById('level').innerText = player.level;
+            document.getElementById('exp').innerText = player.exp;
+            document.getElementById('exp-needed').innerText = player.expNeeded;
+            document.getElementById('hp').innerText = Math.min(player.hp, player.maxHp);
+            document.getElementById('max-hp').innerText = player.maxHp;
+            document.getElementById('attack').innerText = player.attack + player.weaponBonus;
+            document.getElementById('gold').innerText = player.gold;
+            document.getElementById('weapon').innerText = player.weapon;
+            const weaponIcon = document.getElementById('weapon-icon');
+            weaponIcon.style.display = player.weapon === '無' ? 'none' : 'inline-block';
+            if (player.weapon === '鐵劍') weaponIcon.style.background = '#aaa'; // 灰
+            if (player.weapon === '銅槍') weaponIcon.style.background = '#b87333'; // 銅
+            if (player.weapon === '銀斧') weaponIcon.style.background = '#c0c0c0'; // 銀
+            if (player.weapon === '金刀') weaponIcon.style.background = '#ffd700'; // 金
+            document.getElementById('potions').innerText = player.potions;
+            document.getElementById('use-potion-btn').disabled = player.potions === 0 || gameOver;
+
+            const grids = document.querySelectorAll('.grid');
+            grids.forEach(grid => {
+                const x = parseInt(grid.style.left) / 22;
+                const y = parseInt(grid.style.top) / 22;
+                grid.className = 'grid';
+                if (explored[y][x]) grid.classList.add('explored');
+                if (x === entrance.x && y === entrance.y) grid.classList.add('entrance');
+            });
+            const pos = document.getElementById('player-pos');
+            pos.style.left = player.x * 22 + 'px';
+            pos.style.top = player.y * 22 + 'px';
+        }
+
+        // 更新按鈕與事件資訊
+        function updateButtons() {
+            document.getElementById('attack-btn').disabled = !enemy || gameOver;
+            document.getElementById('restart-btn').style.display = gameOver ? 'inline-block' : 'none';
+            const eventDetails = document.getElementById('event-details');
+            eventDetails.innerHTML = ''; // 確保事件資訊欄完全清空
+
+            if (enemy) {
+                eventDetails.innerHTML = '<h3>敵人資訊</h3>' +
+                    '<p id="enemy-stats"><span id="enemy-icon"></span>怪獸生命: <span id="enemy-hp">' + 
+                    Math.max(enemy.hp, 0) + '</span></p>';
+            } else if (isAtMerchant) { // 使用isAtMerchant標記
+                eventDetails.innerHTML = '<h3>神秘商人</h3>' +
+                    '<p><span class="potion-icon"></span>補品 (50金幣): <button onclick="buyPotion()">購買</button> ' +
+                    '<button onclick="leaveMerchant()">離開</button></p>';
+            }
+        }
+
+        // 顯示訊息並處理動畫
+        function showMessage(text, shake = false, trap = false) {
+            if (gameOver && !text.includes('遊戲結束')) return;
+            const msg = document.getElementById('message');
+            const container = document.getElementById('game-container');
+            msg.innerText = text;
+            if (shake) {
+                msg.classList.add('shake');
+                setTimeout(() => msg.classList.remove('shake'), 1000);
+            }
+            if (trap) {
+                container.classList.add('trap-flash');
+                setTimeout(() => container.classList.remove('trap-flash'), 500);
+            }
+        }
+
+        // 升級檢查
+        function checkLevelUp() {
+            while (player.exp >= player.expNeeded) {
+                player.level++;
+                player.exp -= player.expNeeded;
+                player.expNeeded = Math.floor(player.expNeeded * 1.5);
+                player.maxHp += 20;
+                player.hp = player.maxHp;
+                player.attack += 5;
+                showMessage(`恭喜你升到${player.level}級！生命與攻擊力提升。`);
+            }
+        }
+
+        // 使用補品
+        function usePotion() {
+            if (player.potions > 0 && player.hp < player.maxHp && !gameOver) {
+                player.potions--;
+                player.hp = Math.min(player.hp + 50, player.maxHp);
+                showMessage('你使用了生命藥水，恢復50點生命！');
+                updateStats();
+                updateButtons();
+            } else if (player.potions === 0) {
+                showMessage('補品不足，無法使用！');
+            }
+        }
+
+        // 購買補品
+        function buyPotion() {
+            if (!gameOver && player.gold >= 50) {
+                player.gold -= 50;
+                player.potions++;
+                showMessage('你購買了一瓶生命藥水！');
+                updateStats();
+                updateButtons();
+            } else if (player.gold < 50) {
+                showMessage('金幣不足，無法購買補品！');
+            }
+        }
+
+        // 離開神秘商人
+        function leaveMerchant() {
+            // 清除神秘商人的限制
+            explored[player.y][player.x] = true; // 標記為已探索
+            document.getElementById('event-details').innerHTML = ''; // 確保事件資訊欄完全清空
+            showMessage('你離開了神秘商人。');
+            isAtMerchant = false; // 重置玩家是否在商人位置的標記
+            // 模擬玩家已離開商人的位置，更新狀態
+            updateStats();
+            updateButtons();
+            // 確保下次移動時不被限制
+        }
+
+        // 隨機生成武器
+        function generateWeapon() {
+            const weapons = [
+                { name: '鐵劍', bonus: 5 },
+                { name: '銅槍', bonus: 10 },
+                { name: '銀斧', bonus: 15 },
+                { name: '金刀', bonus: 20 }
+            ];
+            return weapons[Math.floor(Math.random() * weapons.length)];
+        }
+
+        // 裝備武器
+        function equipWeapon(newWeapon) {
+            if (player.weapon === '無') {
+                player.weapon = newWeapon.name;
+                player.weaponBonus = newWeapon.bonus;
+                showMessage(`你裝備了${newWeapon.name}，攻擊力提升${newWeapon.bonus}！`);
+            } else if (newWeapon.bonus > player.weaponBonus) {
+                player.weapon = newWeapon.name;
+                player.weaponBonus = newWeapon.bonus;
+                showMessage(`你換上了${newWeapon.name}，攻擊力提升至${newWeapon.bonus}！`);
+            } else {
+                showMessage(`你發現了${newWeapon.name}，但當前裝備更好，已丟棄。`);
+            }
+        }
+
+        // 隨機生成怪獸
+        function generateEnemy() {
+            const enemies = [
+                { name: '骷髏兵', hp: 50 + player.level * 10, attack: Math.floor(player.maxHp * 0.1) },
+                { name: '遺跡龍', hp: 80 + player.level * 15, attack: Math.floor(player.maxHp * 0.1) }
+            ];
+            return enemies[Math.floor(Math.random() * enemies.length)];
+        }
+
+        // 檢測特殊格子
+        function isTrap(x, y) {
+            return traps.some(t => t.x === x && t.y === y);
+        }
+        function isTreasure(x, y) {
+            return treasure.x === x && treasure.y === y;
+        }
+        function isMerchant(x, y) {
+            return merchant && merchant.x === x && merchant.y === y; // 不檢查探索狀態
+        }
+        function isMonster(x, y) {
+            return monsters.some(m => m.x === x && m.y === y);
+        }
+
+        // 移動觸發事件
+        document.addEventListener('keydown', (event) => {
+            if (gameOver || (enemy && !isMonster(player.x, player.y)) || isAtMerchant) return; // 使用isAtMerchant限制移動
+            const mapSize = 10;
+            let nextX = player.x;
+            let nextY = player.y;
+            let moved = false;
+
+            if (event.key === 'w' && player.y > 0 && !enemy) { nextY--; moved = true; }
+            if (event.key === 's' && player.y < mapSize - 1 && !enemy) { nextY++; moved = true; }
+            if (event.key === 'a' && player.x > 0 && !enemy) { nextX--; moved = true; }
+            if (event.key === 'd' && player.x < mapSize - 1 && !enemy) { nextX++; moved = true; }
+
+            if (moved) {
+                player.x = nextX;
+                player.y = nextY;
+                if (!explored[player.y][player.x]) {
+                    explored[player.y][player.x] = true; // 立即標記已探索，但不影響商人事件
+                    if (player.x === merchant?.x && player.y === merchant?.y) {
+                        showMessage('你遇到了一位神秘商人！');
+                        isAtMerchant = true; // 設置玩家在商人位置的標記
+                    } else if (player.x === entrance.x && player.y === entrance.y) {
+                        player.floor++;
+                        explored = Array(10).fill().map(() => Array(10).fill(false));
+                        entrance = { x: Math.floor(Math.random() * 10), y: Math.floor(Math.random() * 10) };
+                        initMap();
+                        const startPos = randomStartPosition();
+                        player.x = startPos.x;
+                        player.y = startPos.y;
+                        updateStats(); // 立即更新紅點位置
+                        showMessage(`你進入了第${player.floor}層！`, true);
+                        return; // 防止進入新層後再觸發其他事件
+                    } else if (isMonster(player.x, player.y)) {
+                        enemy = generateEnemy();
+                        showMessage(`你遇到了一隻${enemy.name}！`, true);
+                        updateButtons(); // 更新按鈕狀態，禁用移動
+                        return; // 阻止進一步移動
+                    } else if (isTreasure(player.x, player.y)) {
+                        if (Math.random() < 0.5) {
+                            player.potions++;
+                            showMessage('你發現了一個寶箱，獲得生命藥水！');
+                        } else {
+                            const weapon = generateWeapon();
+                            equipWeapon(weapon);
+                        }
+                    } else if (isTrap(player.x, player.y)) {
+                        player.hp -= 10; // 陷阱傷害保持10
+                        showMessage('你觸發了陷阱，損失10點生命！', true, true);
+                        if (player.hp <= 0) endGame();
+                    } else if (player.x === 5 && player.y === 5 && !treasureFound) {
+                        player.gold += 100;
+                        treasureFound = true;
+                        showMessage('你發現了一個隱藏寶箱，獲得100金幣！');
+                    }
+                }
+                updateStats();
+                updateButtons();
+            }
+        });
+
+        // 遊戲結束
+        function endGame() {
+            gameOver = true;
+            showMessage('你死了！遊戲結束。', true);
+            updateButtons();
+        }
+
+        // 隨機生成起始位置
+        function randomStartPosition() {
+            let x, y, attempts = 0, maxAttempts = 20;
+            do {
+                x = Math.floor(Math.random() * 10);
+                y = Math.floor(Math.random() * 10);
+                attempts++;
+                if (attempts > maxAttempts) {
+                    console.warn('無法找到有效起始位置，使用(0, 0)');
+                    return { x: 0, y: 0 }; // 容錯，確保能繼續遊戲
+                }
+            } while (Math.abs(x - entrance.x) + Math.abs(y - entrance.y) < 10 || 
+                     isTrap(x, y) || isTreasure(x, y) || 
+                     (merchant && merchant.x === x && merchant.y === y) || 
+                     isMonster(x, y));
+            return { x, y };
+        }
+
+        // 重新開始
+        function restart() {
+            player = { floor: 1, level: 1, exp: 0, expNeeded: 50, hp: 100, maxHp: 100, attack: 10, gold: 0, weapon: '無', weaponBonus: 0, x: 0, y: 0, potions: 0 };
+            enemy = null;
+            gameOver = false;
+            treasureFound = false;
+            explored = Array(10).fill().map(() => Array(10).fill(false));
+            entrance = { x: Math.floor(Math.random() * 10), y: Math.floor(Math.random() * 10) };
+            initMap();
+            const startPos = randomStartPosition();
+            player.x = startPos.x;
+            player.y = startPos.y;
+            isAtMerchant = false; // 確保重啟時不在商人位置
+            updateStats(); // 確保重啟時紅點位置正確
+            updateButtons();
+        }
+
+        // 攻擊怪獸
+        function attack() {
+            if (!enemy || gameOver) return;
+            let damage = player.attack + player.weaponBonus;
+            if (Math.random() < 0.1) { // 10%爆擊
+                damage *= 5;
+                showMessage(`爆擊！你對怪獸造成${damage}點傷害！`, true);
+            } else {
+                showMessage(`你對怪獸造成${damage}點傷害！`);
+            }
+            enemy.hp -= damage;
+            if (enemy.hp <= 0) {
+                player.gold += 25;
+                player.exp += 30;
+                showMessage('怪獸被擊敗！你獲得25金幣和30經驗值。');
+                if (Math.random() < 0.5) { // 50%掉落武器
+                    const weapon = generateWeapon();
+                    equipWeapon(weapon);
+                }
+                enemy = null;
+                updateButtons(); // 恢復移動
+                checkLevelUp();
+            } else {
+                player.hp -= enemy.attack;
+                showMessage(`怪獸反擊，造成${enemy.attack}點傷害！`, true);
+                if (player.hp <= 0) endGame();
+            }
+            updateStats();
+            updateButtons();
+        }
+
+        // 初始載入
+        initMap();
+        updateStats();
+        updateButtons();
+
+        // 進度保存與載入
+        try {
+            if (localStorage.getItem('playerData')) {
+                player = JSON.parse(localStorage.getItem('playerData'));
+            }
+            if (localStorage.getItem('treasureFound')) {
+                treasureFound = JSON.parse(localStorage.getItem('treasureFound'));
+            }
+            if (localStorage.getItem('explored')) {
+                explored = JSON.parse(localStorage.getItem('explored'));
+            }
+            if (localStorage.getItem('entrance')) {
+                entrance = JSON.parse(localStorage.getItem('entrance'));
+            }
+            if (localStorage.getItem('traps')) {
+                traps = JSON.parse(localStorage.getItem('traps'));
+            }
+            if (localStorage.getItem('treasure')) {
+                treasure = JSON.parse(localStorage.getItem('treasure'));
+            }
+            if (localStorage.getItem('monsters')) {
+                monsters = JSON.parse(localStorage.getItem('monsters'));
+            }
+            if (localStorage.getItem('merchant')) {
+                merchant = JSON.parse(localStorage.getItem('merchant'));
+            }
+            isAtMerchant = false; // 確保載入時不在商人位置
+            // 重置玩家位置為新層隨機位置
+            const startPos = randomStartPosition();
+            player.x = startPos.x;
+            player.y = startPos.y;
+            updateStats();
+            updateButtons();
+        } catch (e) {
+            console.error('載入存檔失敗，使用默認值');
+            initMap();
+            updateStats();
+            updateButtons();
+        }
+        window.onbeforeunload = () => {
+            localStorage.setItem('playerData', JSON.stringify(player));
+            localStorage.setItem('treasureFound', JSON.stringify(treasureFound));
+            localStorage.setItem('explored', JSON.stringify(explored));
+            localStorage.setItem('entrance', JSON.stringify(entrance));
+            localStorage.setItem('traps', JSON.stringify(traps));
+            localStorage.setItem('treasure', JSON.stringify(treasure));
+            localStorage.setItem('monsters', JSON.stringify(monsters));
+            localStorage.setItem('merchant', JSON.stringify(merchant));
+            localStorage.setItem('isAtMerchant', JSON.stringify(isAtMerchant)); // 保存是否在商人位置
+        };
+    </script>
+</body>
+</html>
