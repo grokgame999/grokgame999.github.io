@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>星際掠奪者 v7</title>
+    <style>
+        body { margin: 0; background: #0f0f23; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        canvas { border: 2px solid #ffffff20; background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVQIW2NkYGD4z8DAwMDAwAAAzgD8/wM6lSkAAAAASUVORK5CYII=') repeat; box-shadow: 0 0 20px rgba(0, 0, 0, 0.8); }
+        #ui { position: absolute; top: 20px; left: 20px; color: #00ffcc; font-family: 'Orbitron', sans-serif; font-size: 18px; text-shadow: 0 0 5px #00ffcc; }
+        #gameOver, #startScreen { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ff3366; text-align: center; font-family: 'Orbitron', sans-serif; text-shadow: 0 0 10px #ff3366; background: rgba(0, 0, 0, 0.8); padding: 20px; border-radius: 10px; }
+        #startScreen { display: block; color: #00ffcc; text-shadow: 0 0 10px #00ffcc; }
+        button { padding: 15px 30px; font-size: 18px; background: #ff3366; border: none; color: white; cursor: pointer; border-radius: 5px; box-shadow: 0 0 10px #ff3366; transition: all 0.3s; }
+        button:hover { background: #ff6699; box-shadow: 0 0 20px #ff6699; }
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+    </style>
+</head>
+<body>
+    <div id="ui">分數: 0 | 生命值: 3 | 速度: 5 | 子彈速度: 10 | 護盾冷卻: 0s</div>
+    <div id="startScreen">
+        <h1>星際掠奪者</h1>
+        <p>操作說明:</p>
+        <ul style="text-align: left; list-style: none; color: #ffffff;">
+            <li>WASD: 移動飛船</li>
+            <li>滑鼠移動: 瞄準</li>
+            <li>左鍵: 射擊</li>
+            <li>E: 採集資源</li>
+            <li>1: 提升速度 (20 分)</li>
+            <li>2: 提升子彈速度 (20 分)</li>
+            <li>Q: 啟動護盾 (5 秒, 冷卻 15 秒)</li>
+        </ul>
+        <button onclick="startGame()">開始遊戲</button>
+    </div>
+    <div id="gameOver">
+        <h1>遊戲結束</h1>
+        <p id="finalScore"></p>
+        <button onclick="restartGame()">重新開始</button>
+    </div>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const uiDisplay = document.getElementById('ui');
+        const gameOverScreen = document.getElementById('gameOver');
+        const startScreen = document.getElementById('startScreen');
+        const finalScoreDisplay = document.getElementById('finalScore');
+        let score = 0;
+        let gameRunning = false;
+        let gameTime = 0;
+
+        const ship = { x: 400, y: 300, speed: 5, size: 20, angle: 0, bullets: [], health: 3, bulletSpeed: 10, shield: false, shieldTime: 0, shieldCooldown: 0 };
+        const enemies = [];
+        const resources = [];
+        const drops = [];
+        const particles = [];
+        const messages = [];
+        const keys = { pressed: {} };
+        let lastEnemySpawn = 0;
+        let lastResourceSpawn = 0;
+        let lastBossSpawn = 0;
+        let enemySpawnInterval = 2000;
+
+        window.addEventListener('keydown', (e) => { if (!keys.pressed[e.key]) keys.pressed[e.key] = true; });
+        window.addEventListener('keyup', (e) => delete keys.pressed[e.key]);
+        let mouseX = 0, mouseY = 0;
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+        });
+        canvas.addEventListener('click', () => {
+            if (gameRunning) {
+                ship.bullets.push({ x: ship.x, y: ship.y, dx: Math.cos(ship.angle) * ship.bulletSpeed, dy: Math.sin(ship.angle) * ship.bulletSpeed });
+            }
+        });
+
+        function spawnEnemy(isBoss = false) {
+            const edge = Math.floor(Math.random() * 4);
+            let x, y;
+            if (edge === 0) { x = Math.random() * canvas.width; y = -20; }
+            else if (edge === 1) { x = Math.random() * canvas.width; y = canvas.height + 20; }
+            else if (edge === 2) { x = -20; y = Math.random() * canvas.height; }
+            else { x = canvas.width + 20; y = Math.random() * canvas.height; }
+            const enemy = isBoss ? { x, y, speed: 1, size: 30, health: 3 } : { x, y, speed: 2, size: 15, health: 1 };
+            enemies.push(enemy);
+            if (isBoss) messages.push({ text: "Boss 出現!", x: canvas.width / 2, y: canvas.height / 2 - messages.length * 25, life: 120 });
+        }
+
+        function spawnResource() {
+            const x = Math.random() * (canvas.width - 20) + 10;
+            const y = Math.random() * (canvas.height - 20) + 10;
+            resources.push({ x, y, size: 10 });
+        }
+
+        function spawnDrop(x, y) {
+            if (Math.random() < 0.5) drops.push({ x, y, size: 10, type: 'health' });
+        }
+
+        function spawnParticles(x, y) {
+            if (particles.length < 100) {
+                for (let i = 0; i < 10; i++) {
+                    particles.push({
+                        x, y,
+                        dx: (Math.random() - 0.5) * 5,
+                        dy: (Math.random() - 0.5) * 5,
+                        life: 30,
+                        size: Math.random() * 5 + 2
+                    });
+                }
+            }
+        }
+
+        function update() {
+            if (!gameRunning) return;
+
+            const now = Date.now();
+            gameTime += 16;
+            if (gameTime % 60000 === 0) enemySpawnInterval = Math.max(1000, enemySpawnInterval - 100);
+
+            if (now - lastEnemySpawn > enemySpawnInterval) { spawnEnemy(); lastEnemySpawn = now; }
+            if (now - lastResourceSpawn > 3000) { spawnResource(); lastResourceSpawn = now; }
+            if (now - lastBossSpawn > 30000) { spawnEnemy(true); lastBossSpawn = now; }
+
+            if (keys.pressed['w']) ship.y -= ship.speed;
+            if (keys.pressed['s']) ship.y += ship.speed;
+            if (keys.pressed['a']) ship.x -= ship.speed;
+            if (keys.pressed['d']) ship.x += ship.speed;
+            ship.x = Math.max(ship.size, Math.min(canvas.width - ship.size, ship.x));
+            ship.y = Math.max(ship.size, Math.min(canvas.height - ship.size, ship.y));
+            ship.angle = Math.atan2(mouseY - ship.y, mouseX - ship.x);
+
+            if (keys.pressed['q'] && ship.shieldCooldown <= 0) {
+                ship.shield = true;
+                ship.shieldTime = 300;
+                ship.shieldCooldown = 900;
+                delete keys.pressed['q'];
+            }
+            if (ship.shieldTime > 0) ship.shieldTime--;
+            else ship.shield = false;
+            if (ship.shieldCooldown > 0) ship.shieldCooldown--;
+
+            for (let i = ship.bullets.length - 1; i >= 0; i--) {
+                const bullet = ship.bullets[i];
+                bullet.x += bullet.dx;
+                bullet.y += bullet.dy;
+                if (bullet.x < 0 || bullet.x > canvas.width || bullet.y < 0 || bullet.y > canvas.height) {
+                    ship.bullets.splice(i, 1);
+                    continue;
+                }
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    const enemy = enemies[j];
+                    if (Math.hypot(bullet.x - enemy.x, bullet.y - enemy.y) < enemy.size + 3) {
+                        enemy.health--;
+                        ship.bullets.splice(i, 1);
+                        if (enemy.health <= 0) {
+                            enemies.splice(j, 1);
+                            score += enemy.size === 30 ? 50 : 10;
+                            spawnParticles(enemy.x, enemy.y);
+                            messages.push({ text: enemy.size === 30 ? "Boss 擊敗!" : "+10", x: enemy.x, y: enemy.y - messages.length * 25, life: 60 });
+                            if (enemy.size === 30) { spawnDrop(enemy.x, enemy.y); lastBossSpawn = now; }
+                        }
+                        break;
+                    }
+                }
+            }
+
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const enemy = enemies[i];
+                const angle = Math.atan2(ship.y - enemy.y, ship.x - enemy.x);
+                enemy.x += Math.cos(angle) * enemy.speed;
+                enemy.y += Math.sin(angle) * enemy.speed;
+                if (Math.hypot(ship.x - enemy.x, ship.y - enemy.y) < ship.size + enemy.size) {
+                    enemies.splice(i, 1);
+                    if (!ship.shield) {
+                        ship.health--;
+                        if (ship.health <= 0) endGame();
+                    }
+                }
+            }
+
+            if (keys.pressed['e']) {
+                for (let i = resources.length - 1; i >= 0; i--) {
+                    const resource = resources[i];
+                    if (Math.hypot(ship.x - resource.x, ship.y - resource.y) < ship.size + resource.size) {
+                        resources.splice(i, 1);
+                        score += 5;
+                        messages.push({ text: "+5", x: resource.x, y: resource.y - messages.length * 25, life: 60 });
+                    }
+                }
+                delete keys.pressed['e'];
+            }
+
+            for (let i = drops.length - 1; i >= 0; i--) {
+                const drop = drops[i];
+                if (Math.hypot(ship.x - drop.x, ship.y - drop.y) < ship.size + drop.size) {
+                    drops.splice(i, 1);
+                    if (drop.type === 'health') ship.health++;
+                }
+            }
+
+            if (keys.pressed['1'] && score >= 20) { ship.speed += 1; score -= 20; delete keys.pressed['1']; }
+            if (keys.pressed['2'] && score >= 20) { ship.bulletSpeed += 2; score -= 20; delete keys.pressed['2']; }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.dx;
+                p.y += p.dy;
+                p.life--;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            for (let i = messages.length - 1; i >= 0; i--) {
+                messages[i].life--;
+                messages[i].y -= 1;
+                if (messages[i].life <= 0) messages.splice(i, 1);
+            }
+
+            uiDisplay.textContent = `分數: ${score} | 生命值: ${ship.health} | 速度: ${ship.speed} | 子彈速度: ${ship.bulletSpeed} | 護盾冷卻: ${Math.ceil(ship.shieldCooldown / 60)}s`;
+        }
+
+        function drawShip() {
+            ctx.save();
+            ctx.translate(ship.x, ship.y);
+            ctx.rotate(ship.angle);
+
+            // 飛船主體
+            const gradient = ctx.createRadialGradient(0, 0, 5, 0, 0, ship.size);
+            gradient.addColorStop(0, '#00ffcc');
+            gradient.addColorStop(1, '#ffffff');
+            ctx.beginPath();
+            ctx.moveTo(ship.size, 0); // 前端
+            ctx.lineTo(-ship.size / 2, ship.size / 2); // 左下
+            ctx.lineTo(-ship.size * 0.8, 0); // 後端
+            ctx.lineTo(-ship.size / 2, -ship.size / 2); // 左上
+            ctx.closePath();
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            ctx.strokeStyle = '#00cc99';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // 尾焰
+            if (keys.pressed['w'] || keys.pressed['s'] || keys.pressed['a'] || keys.pressed['d']) {
+                const flameGradient = ctx.createLinearGradient(-ship.size * 0.8, 0, -ship.size * 1.2, 0);
+                flameGradient.addColorStop(0, 'rgba(255, 51, 102, 1)');
+                flameGradient.addColorStop(1, 'rgba(255, 51, 102, 0)');
+                ctx.beginPath();
+                ctx.moveTo(-ship.size * 0.8, -ship.size / 4);
+                ctx.lineTo(-ship.size * 1.2, 0);
+                ctx.lineTo(-ship.size * 0.8, ship.size / 4);
+                ctx.fillStyle = flameGradient;
+                ctx.fill();
+            }
+
+            // 護盾
+            if (ship.shield) {
+                ctx.beginPath();
+                ctx.arc(0, 0, ship.size + 5, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(0, 255, 204, ${ship.shieldTime / 300})`;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (!gameRunning) return;
+
+            drawShip();
+
+            ship.bullets.forEach(bullet => {
+                ctx.beginPath();
+                ctx.arc(bullet.x, bullet.y, 3, 0, Math.PI * 2);
+                ctx.fillStyle = '#ff3366';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#ff3366';
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            });
+
+            enemies.forEach(enemy => {
+                ctx.save();
+                ctx.translate(enemy.x, enemy.y);
+                ctx.rotate(Math.atan2(ship.y - enemy.y, ship.x - enemy.x));
+                ctx.beginPath();
+                ctx.moveTo(enemy.size, 0);
+                ctx.lineTo(-enemy.size, enemy.size / 2);
+                ctx.lineTo(-enemy.size, -enemy.size / 2);
+                ctx.closePath();
+                ctx.fillStyle = enemy.size === 30 ? '#9900ff' : '#ff3333';
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = enemy.size === 30 ? '#9900ff' : '#ff3333';
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.restore();
+            });
+
+            resources.forEach(resource => {
+                const gradient = ctx.createRadialGradient(resource.x, resource.y, 2, resource.x, resource.y, resource.size);
+                gradient.addColorStop(0, '#00ff00');
+                gradient.addColorStop(1, '#00cc00');
+                ctx.beginPath();
+                ctx.arc(resource.x, resource.y, resource.size, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+            });
+
+            drops.forEach(drop => {
+                ctx.beginPath();
+                ctx.arc(drop.x, drop.y, drop.size, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffcc00';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#ffcc00';
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            });
+
+            particles.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 0, ${p.life / 30})`;
+                ctx.fill();
+            });
+
+            messages.forEach(m => {
+                ctx.font = '20px Orbitron';
+                ctx.fillStyle = `rgba(255, 255, 0, ${m.life / 60})`;
+                ctx.shadowBlur = 5;
+                ctx.shadowColor = '#ffff00';
+                ctx.textAlign = 'center';
+                ctx.fillText(m.text, m.x, m.y);
+                ctx.shadowBlur = 0;
+            });
+        }
+
+        function endGame() {
+            gameRunning = false;
+            gameOverScreen.style.display = 'block';
+            finalScoreDisplay.textContent = `最終分數: ${score}`;
+        }
+
+        function startGame() {
+            startScreen.style.display = 'none';
+            gameRunning = true;
+            gameLoop();
+        }
+
+        function restartGame() {
+            score = 0;
+            gameTime = 0;
+            ship.x = 400;
+            ship.y = 300;
+            ship.health = 3;
+            ship.speed = 5;
+            ship.bulletSpeed = 10;
+            ship.shield = false;
+            ship.shieldTime = 0;
+            ship.shieldCooldown = 0;
+            ship.bullets = [];
+            enemies.length = 0;
+            resources.length = 0;
+            drops.length = 0;
+            particles.length = 0;
+            messages.length = 0;
+            enemySpawnInterval = 2000;
+            gameRunning = true;
+            gameOverScreen.style.display = 'none';
+            gameLoop();
+        }
+
+        function gameLoop() {
+            if (gameRunning) {
+                update();
+                draw();
+                requestAnimationFrame(gameLoop);
+            }
+        }
+    </script>
+</body>
+</html>
