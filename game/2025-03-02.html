@@ -45,14 +45,15 @@
             box-sizing: border-box;
         }
         button {
-            padding: 10px 20px;
-            margin: 5px;
+            padding: 5px 10px;
+            margin: 2px;
             cursor: pointer;
             background: linear-gradient(#555, #333);
             color: #fff;
             border: none;
             border-radius: 5px;
             transition: all 0.3s;
+            font-size: 12px;
         }
         button:hover:not(:disabled) {
             background: linear-gradient(#777, #555);
@@ -71,6 +72,9 @@
         }
         .trap-flash {
             animation: flash 0.5s;
+        }
+        .low-hp-flash {
+            animation: low-hp-flash 0.5s infinite; /* 無限循環紅色閃爍 */
         }
         #map {
             width: 220px;
@@ -124,17 +128,30 @@
             background: #aaa; /* 預設顏色 */
             clip-path: polygon(40% 0%, 60% 0%, 60% 70%, 80% 100%, 20% 100%, 40% 70%);
         }
-        .potion-icon {
+        .potion-icon, .item-icon {
             width: 16px;
             height: 24px;
             display: inline-block;
             vertical-align: middle;
+            margin-right: 5px;
+        }
+        .potion-icon {
             background: #0f0; /* 綠色藥瓶 */
             border: 2px solid #fff;
             border-radius: 4px 4px 0 0;
             clip-path: polygon(20% 0%, 80% 0%, 80% 70%, 60% 100%, 40% 100%, 20% 70%);
-            margin-right: 5px;
         }
+        .item-icon {
+            background: #888; /* 預設武器圖標（灰色） */
+            border: 2px solid #fff;
+            border-radius: 4px;
+            clip-path: polygon(20% 20%, 80% 20%, 80% 80%, 20% 80%);
+        }
+        /* 特定武器的圖標顏色 */
+        .item-icon-gold { background: #ffd700; } /* 金刀 */
+        .item-icon-silver { background: #c0c0c0; } /* 銀斧 */
+        .item-icon-copper { background: #b87333; } /* 銅槍 */
+        .item-icon-iron { background: #aaa; } /* 鐵劍 */
         @keyframes shake {
             0% { transform: translateX(0); }
             10% { transform: translateX(-10px); }
@@ -153,6 +170,11 @@
             50% { box-shadow: inset 0 0 40px #f00; }
             100% { box-shadow: inset 0 0 10px #333; }
         }
+        @keyframes low-hp-flash {
+            0% { box-shadow: inset 0 0 20px #f00; }
+            50% { box-shadow: inset 0 0 40px #f00; }
+            100% { box-shadow: inset 0 0 20px #f00; }
+        }
         @keyframes slide-in {
             0% { transform: translateY(-50px); opacity: 0; }
             100% { transform: translateY(0); opacity: 1; }
@@ -170,7 +192,7 @@
             <p>攻擊力: <span id="attack">10</span></p>
             <p>金幣: <span id="gold">0</span></p>
             <p>武器: <span id="weapon">無</span> <span id="weapon-icon" style="display:none;"></span></p>
-            <p><span class="potion-icon"></span>補品: <span id="potions">0</span> <button id="use-potion-btn" onclick="usePotion()">使用補品</button></p>
+            <p>物品欄: <span id="inventory"></span></p>
         </div>
         <div id="game-display">
             <h2>遊戲畫面</h2>
@@ -188,7 +210,7 @@
     </div>
 
     <script>
-        let player = { floor: 1, level: 1, exp: 0, expNeeded: 50, hp: 100, maxHp: 100, attack: 10, gold: 0, weapon: '無', weaponBonus: 0, x: 0, y: 0, potions: 0 };
+        let player = { floor: 1, level: 1, exp: 0, expNeeded: 50, hp: 100, maxHp: 100, attack: 10, gold: 0, weapon: '無', weaponBonus: 0, x: 0, y: 0 };
         let enemy = null;
         let gameOver = false;
         let treasureFound = false;
@@ -198,7 +220,8 @@
         let treasure = {};
         let merchant = null; // 初始為null，100%生成
         let monsters = []; // 儲存怪獸位置
-        let isAtMerchant = false; // 新增標記玩家是否在商人位置
+        let isAtMerchant = false; // 標記玩家是否在商人位置
+        let inventory = {}; // 儲存物品數量（武器與補品）
 
         // 初始化地圖與特殊格子
         function initMap() {
@@ -230,6 +253,7 @@
                     map.appendChild(grid);
                 }
             }
+            console.log('可用格子數量:', available.length); // 調試：檢查可用格子
             // 確保至少有7個可用格子，否則跳過生成
             if (available.length < 7) {
                 traps = [];
@@ -259,6 +283,7 @@
                 monsters.push(available[idx]);
                 available.splice(idx, 1);
             }
+            console.log('怪獸位置:', monsters); // 調試：檢查怪獸位置
         }
 
         // 隨機生成位置（確保不與其他事件重疊）
@@ -296,8 +321,33 @@
             if (player.weapon === '銅槍') weaponIcon.style.background = '#b87333'; // 銅
             if (player.weapon === '銀斧') weaponIcon.style.background = '#c0c0c0'; // 銀
             if (player.weapon === '金刀') weaponIcon.style.background = '#ffd700'; // 金
-            document.getElementById('potions').innerText = player.potions;
-            document.getElementById('use-potion-btn').disabled = player.potions === 0 || gameOver;
+
+            // 构建物品栏显示（按金、銀、銅、鐵、補品的順序排序）
+            const itemOrder = ['金刀', '銀斧', '銅槍', '鐵劍', '生命藥水'];
+            let inventoryDisplay = '<div style="text-align: left;">';
+            for (let item of itemOrder) {
+                if (inventory[item] && inventory[item] > 0) {
+                    const icon = item === '生命藥水' ? '<span class="potion-icon"></span>' : 
+                        `<span class="item-icon item-icon-${item.toLowerCase().split('').slice(0, -1).join('')}"></span>`;
+                    inventoryDisplay += `${icon}${item}.${inventory[item]}`;
+                    if (item !== '生命藥水') {
+                        inventoryDisplay += ` <button onclick="craftWeapon('${item}')">鑄造</button>`;
+                    } else {
+                        inventoryDisplay += ` <button onclick="useItem('${item}')">使用</button>`;
+                    }
+                    inventoryDisplay += '<br>';
+                }
+            }
+            inventoryDisplay += '</div>';
+            document.getElementById('inventory').innerHTML = inventoryDisplay || '空';
+
+            // 檢查血量低於30，添加或移除紅色閃爍特效
+            const gameContainer = document.getElementById('game-container');
+            if (player.hp < 30 && !gameContainer.classList.contains('low-hp-flash')) {
+                gameContainer.classList.add('low-hp-flash');
+            } else if (player.hp >= 30 && gameContainer.classList.contains('low-hp-flash')) {
+                gameContainer.classList.remove('low-hp-flash');
+            }
 
             const grids = document.querySelectorAll('.grid');
             grids.forEach(grid => {
@@ -325,7 +375,7 @@
                     Math.max(enemy.hp, 0) + '</span></p>';
             } else if (isAtMerchant) { // 使用isAtMerchant標記
                 eventDetails.innerHTML = '<h3>神秘商人</h3>' +
-                    '<p><span class="potion-icon"></span>補品 (50金幣): <button onclick="buyPotion()">購買</button> ' +
+                    '<p><span class="potion-icon"></span>生命藥水 (50金幣): <button onclick="buyPotion()">購買</button> ' +
                     '<button onclick="leaveMerchant()">離開</button></p>';
             }
         }
@@ -359,29 +409,34 @@
             }
         }
 
-        // 使用補品
-        function usePotion() {
-            if (player.potions > 0 && player.hp < player.maxHp && !gameOver) {
-                player.potions--;
+        // 使用物品（支援特定物品）
+        function useItem(itemName = '生命藥水') {
+            if (!inventory[itemName] || inventory[itemName] <= 0) {
+                showMessage('物品欄中無此物品！');
+                return;
+            }
+            if (itemName === '生命藥水') {
+                inventory[itemName]--;
                 player.hp = Math.min(player.hp + 50, player.maxHp);
                 showMessage('你使用了生命藥水，恢復50點生命！');
-                updateStats();
-                updateButtons();
-            } else if (player.potions === 0) {
-                showMessage('補品不足，無法使用！');
+                if (inventory[itemName] === 0) {
+                    delete inventory[itemName];
+                }
             }
+            updateStats();
+            updateButtons();
         }
 
-        // 購買補品
+        // 購買補品（生命藥水）
         function buyPotion() {
             if (!gameOver && player.gold >= 50) {
                 player.gold -= 50;
-                player.potions++;
+                inventory['生命藥水'] = (inventory['生命藥水'] || 0) + 1;
                 showMessage('你購買了一瓶生命藥水！');
                 updateStats();
                 updateButtons();
             } else if (player.gold < 50) {
-                showMessage('金幣不足，無法購買補品！');
+                showMessage('金幣不足，無法購買生命藥水！');
             }
         }
 
@@ -398,39 +453,66 @@
             // 確保下次移動時不被限制
         }
 
-        // 隨機生成武器
+        // 隨機生成武器（根據攻擊力調整掉落機率）
         function generateWeapon() {
             const weapons = [
-                { name: '鐵劍', bonus: 5 },
-                { name: '銅槍', bonus: 10 },
-                { name: '銀斧', bonus: 15 },
-                { name: '金刀', bonus: 20 }
+                { name: '鐵劍', bonus: 5, weight: 0.4 }, // 攻擊力低，機率高
+                { name: '銅槍', bonus: 10, weight: 0.3 }, // 攻擊力中等，機率中等
+                { name: '銀斧', bonus: 15, weight: 0.2 }, // 攻擊力高，機率低
+                { name: '金刀', bonus: 20, weight: 0.1 }  // 攻擊力最高，機率最低
             ];
-            return weapons[Math.floor(Math.random() * weapons.length)];
+            const totalWeight = weapons.reduce((sum, weapon) => sum + weapon.weight, 0);
+            let rand = Math.random() * totalWeight;
+            for (let weapon of weapons) {
+                rand -= weapon.weight;
+                if (rand <= 0) return weapon;
+            }
+            return weapons[0]; // 預設返回鐵劍（最低攻擊力）
         }
 
-        // 裝備武器
-        function equipWeapon(newWeapon) {
+        // 處理新裝備（放入物品欄或裝備，換下的武器回到物品欄）
+        function handleNewWeapon(newWeapon) {
             if (player.weapon === '無') {
+                // 如果無武器，直接裝備
                 player.weapon = newWeapon.name;
                 player.weaponBonus = newWeapon.bonus;
                 showMessage(`你裝備了${newWeapon.name}，攻擊力提升${newWeapon.bonus}！`);
             } else if (newWeapon.bonus > player.weaponBonus) {
+                // 如果新武器攻擊力更高，換下當前武器並裝備新武器
+                const oldWeapon = player.weapon;
+                inventory[oldWeapon] = (inventory[oldWeapon] || 0) + 1; // 將舊武器放回物品欄
                 player.weapon = newWeapon.name;
                 player.weaponBonus = newWeapon.bonus;
-                showMessage(`你換上了${newWeapon.name}，攻擊力提升至${newWeapon.bonus}！`);
+                showMessage(`你換下了${oldWeapon}，裝備了${newWeapon.name}，攻擊力提升${newWeapon.bonus}！`);
             } else {
-                showMessage(`你發現了${newWeapon.name}，但當前裝備更好，已丟棄。`);
+                // 如果新武器攻擊力低於當前裝備，放入物品欄
+                inventory[newWeapon.name] = (inventory[newWeapon.name] || 0) + 1;
+                showMessage(`你獲得了${newWeapon.name}，攻擊力較低，已放入物品欄！`);
             }
+            updateStats();
         }
 
-        // 隨機生成怪獸
-        function generateEnemy() {
-            const enemies = [
-                { name: '骷髏兵', hp: 50 + player.level * 10, attack: Math.floor(player.maxHp * 0.1) },
-                { name: '遺跡龍', hp: 80 + player.level * 15, attack: Math.floor(player.maxHp * 0.1) }
-            ];
-            return enemies[Math.floor(Math.random() * enemies.length)];
+        // 鑄造武器（三個相同武器+100金幣合成為上一等級的武器）
+        function craftWeapon(weaponName) {
+            const weaponLevels = ['鐵劍', '銅槍', '銀斧', '金刀'];
+            const currentIndex = weaponLevels.indexOf(weaponName);
+            if (currentIndex === -1 || currentIndex === weaponLevels.length - 1) {
+                showMessage('無法鑄造，武器已為最高等級或無效！');
+                return;
+            }
+            if (inventory[weaponName] && inventory[weaponName] >= 3 && player.gold >= 100) {
+                player.gold -= 100;
+                inventory[weaponName] -= 3;
+                if (inventory[weaponName] === 0) {
+                    delete inventory[weaponName];
+                }
+                const nextWeapon = weaponLevels[currentIndex + 1];
+                inventory[nextWeapon] = (inventory[nextWeapon] || 0) + 1;
+                showMessage(`成功鑄造${nextWeapon}！`);
+            } else {
+                showMessage('需要3個相同武器和100金幣才能鑄造！');
+            }
+            updateStats();
         }
 
         // 檢測特殊格子
@@ -444,7 +526,17 @@
             return merchant && merchant.x === x && merchant.y === y; // 不檢查探索狀態
         }
         function isMonster(x, y) {
+            console.log('檢查怪獸位置:', x, y, monsters); // 調試：檢查位置與怪獸
             return monsters.some(m => m.x === x && m.y === y);
+        }
+
+        // 隨機生成怪獸
+        function generateEnemy() {
+            const enemies = [
+                { name: '骷髏兵', hp: 50 + player.level * 10, attack: Math.floor(player.maxHp * 0.1) },
+                { name: '遺跡龍', hp: 80 + player.level * 15, attack: Math.floor(player.maxHp * 0.1) }
+            ];
+            return enemies[Math.floor(Math.random() * enemies.length)];
         }
 
         // 移動觸發事件
@@ -480,17 +572,18 @@
                         showMessage(`你進入了第${player.floor}層！`, true);
                         return; // 防止進入新層後再觸發其他事件
                     } else if (isMonster(player.x, player.y)) {
+                        console.log('觸發怪獸事件:', player.x, player.y, monsters); // 調試：確認觸發
                         enemy = generateEnemy();
                         showMessage(`你遇到了一隻${enemy.name}！`, true);
                         updateButtons(); // 更新按鈕狀態，禁用移動
                         return; // 阻止進一步移動
                     } else if (isTreasure(player.x, player.y)) {
                         if (Math.random() < 0.5) {
-                            player.potions++;
+                            inventory['生命藥水'] = (inventory['生命藥水'] || 0) + 1;
                             showMessage('你發現了一個寶箱，獲得生命藥水！');
                         } else {
                             const weapon = generateWeapon();
-                            equipWeapon(weapon);
+                            handleNewWeapon(weapon);
                         }
                     } else if (isTrap(player.x, player.y)) {
                         player.hp -= 10; // 陷阱傷害保持10
@@ -534,11 +627,12 @@
 
         // 重新開始
         function restart() {
-            player = { floor: 1, level: 1, exp: 0, expNeeded: 50, hp: 100, maxHp: 100, attack: 10, gold: 0, weapon: '無', weaponBonus: 0, x: 0, y: 0, potions: 0 };
+            player = { floor: 1, level: 1, exp: 0, expNeeded: 50, hp: 100, maxHp: 100, attack: 10, gold: 0, weapon: '無', weaponBonus: 0, x: 0, y: 0 };
             enemy = null;
             gameOver = false;
             treasureFound = false;
             explored = Array(10).fill().map(() => Array(10).fill(false));
+            inventory = {}; // 重置物品欄
             entrance = { x: Math.floor(Math.random() * 10), y: Math.floor(Math.random() * 10) };
             initMap();
             const startPos = randomStartPosition();
@@ -566,7 +660,7 @@
                 showMessage('怪獸被擊敗！你獲得25金幣和30經驗值。');
                 if (Math.random() < 0.5) { // 50%掉落武器
                     const weapon = generateWeapon();
-                    equipWeapon(weapon);
+                    handleNewWeapon(weapon);
                 }
                 enemy = null;
                 updateButtons(); // 恢復移動
@@ -611,7 +705,10 @@
             if (localStorage.getItem('merchant')) {
                 merchant = JSON.parse(localStorage.getItem('merchant'));
             }
-            isAtMerchant = false; // 確保載入時不在商人位置
+            if (localStorage.getItem('inventory')) {
+                inventory = JSON.parse(localStorage.getItem('inventory'));
+            }
+            isAtMerchant = localStorage.getItem('isAtMerchant') === 'true' ? true : false; // 恢復是否在商人位置
             // 重置玩家位置為新層隨機位置
             const startPos = randomStartPosition();
             player.x = startPos.x;
@@ -633,7 +730,8 @@
             localStorage.setItem('treasure', JSON.stringify(treasure));
             localStorage.setItem('monsters', JSON.stringify(monsters));
             localStorage.setItem('merchant', JSON.stringify(merchant));
-            localStorage.setItem('isAtMerchant', JSON.stringify(isAtMerchant)); // 保存是否在商人位置
+            localStorage.setItem('inventory', JSON.stringify(inventory));
+            localStorage.setItem('isAtMerchant', JSON.stringify(isAtMerchant));
         };
     </script>
 </body>
