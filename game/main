@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>可移動海拔圖表</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        #chartContainer {
+            width: 80%;
+            max-width: 800px;
+        }
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div id="chartContainer">
+        <canvas id="elevationChart"></canvas>
+    </div>
+
+    <!-- 使用穩定版本的 CDN 匯入 Chart.js 和縮放插件 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.3/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+
+    <script>
+        // 檢查 Chart.js 是否加載
+        if (typeof Chart === 'undefined') {
+            console.error("Chart.js 未正確加載！請檢查網絡連接或 CDN 連結。");
+        } else {
+            console.log("Chart.js 已成功加載，版本:", Chart.version);
+        }
+
+        // 模擬的數據點 (42 個點)
+        const data = {
+            labels: Array.from({ length: 43 }, (_, i) => i), // 0 到 42 公里
+            datasets: [{
+                label: '海拔 (公尺)',
+                data: [15, 18, 22, 25, 28, 30, 32, 28, 25, 22, 20, 18, 20, 23, 27, 30, 33, 32, 30, 28, 25, 22, 20, 18, 22, 25, 28, 32, 33, 30, 27, 23, 20, 18, 22, 25, 28, 30, 32, 28, 25, 20, 15],
+                borderColor: 'rgba(75, 192, 192, 1)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                fill: true,
+                tension: 0.1
+            }]
+        };
+
+        // 配置圖表選項
+        const config = {
+            type: 'line',
+            data: data,
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: '距離 (公里)'
+                        },
+                        min: 0,
+                        max: 42
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: '海拔 (公尺)'
+                        },
+                        min: 0,
+                        max: 35
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    zoom: {
+                        zoom: {
+                            wheel: {
+                                enabled: true
+                            },
+                            pinch: {
+                                enabled: true
+                            },
+                            mode: 'xy'
+                        },
+                        pan: {
+                            enabled: true,
+                            mode: 'xy'
+                        }
+                    }
+                }
+            }
+        };
+
+        // 渲染圖表
+        const ctx = document.getElementById('elevationChart')?.getContext('2d');
+        if (ctx) {
+            try {
+                const elevationChart = new Chart(ctx, config);
+                console.log("圖表已成功初始化");
+                document.body.innerHTML += '<button onclick="elevationChart.resetZoom()">重置縮放</button>';
+            } catch (error) {
+                console.error("圖表初始化失敗:", error);
+            }
+        } else {
+            console.error("無法獲取 canvas 上下文");
+        }
+    </script>
+</body>
+</html>
