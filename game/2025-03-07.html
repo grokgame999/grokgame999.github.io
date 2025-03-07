@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>電子雞遊戲</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f0f0f0;
+            overflow: hidden;
+        }
+
+        .container {
+            text-align: center;
+            background-color: #fff;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 0 1rem rgba(0, 0, 0, 0.1);
+            width: 90vw;
+            max-width: 400px;
+            position: relative;
+            min-height: 500px; /* 確保容器高度足夠 */
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin: 0 0 1rem;
+        }
+
+        /* CSS 繪製電子雞 */
+        .pet {
+            position: absolute;
+            width: 10rem;
+            height: 10rem;
+            top: 3rem; /* 放在標題下方 */
+            left: 50%;
+            transform: translateX(-50%);
+            transition: transform 0.5s ease, opacity 0.5s ease;
+            z-index: 1; /* 確保電子雞在狀態上方 */
+        }
+
+        .pet .body {
+            position: absolute;
+            border-radius: 50%;
+            border: 0.2rem solid #000;
+            transition: all 0.5s ease;
+        }
+
+        .pet.baby .body { width: 4rem; height: 4rem; top: 3rem; left: 3rem; }
+        .pet.child .body { width: 5rem; height: 5rem; top: 2.5rem; left: 2.5rem; }
+        .pet.adult .body { width: 6rem; height: 6rem; top: 2rem; left: 2rem; }
+
+        .pet .eye {
+            position: absolute;
+            background-color: #fff;
+            border-radius: 50%;
+            border: 0.1rem solid #000;
+            transition: all 0.5s ease;
+        }
+
+        .pet.baby .eye { width: 0.8rem; height: 0.8rem; }
+        .pet.child .eye { width: 0.9rem; height: 0.9rem; }
+        .pet.adult .eye { width: 1rem; height: 1rem; }
+
+        .pet.baby .eye.left { top: 3.8rem; left: 3.8rem; }
+        .pet.baby .eye.right { top: 3.8rem; left: 5rem; }
+        .pet.child .eye.left { top: 3.5rem; left: 3.5rem; }
+        .pet.child .eye.right { top: 3.5rem; left: 5rem; }
+        .pet.adult .eye.left { top: 3rem; left: 3rem; }
+        .pet.adult .eye.right { top: 3rem; left: 5rem; }
+
+        .pet .eye .pupil {
+            width: 0.4rem;
+            height: 0.4rem;
+            border-radius: 50%;
+            margin: 0.2rem auto;
+            transition: background-color 0.5s ease;
+        }
+
+        .pet .beak {
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-left: 0.8rem solid transparent;
+            border-right: 0.8rem solid transparent;
+            transition: all 0.5s ease;
+        }
+
+        .pet.baby .beak { top: 5rem; left: 4rem; }
+        .pet.child .beak { top: 4.8rem; left: 4rem; }
+        .pet.adult .beak { top: 5rem; left: 4rem; }
+
+        .pet .wing {
+            position: absolute;
+            width: 2rem;
+            height: 1.5rem;
+            background-color: #ffeb3b;
+            border: 0.2rem solid #000;
+            border-radius: 50% 50% 0 0;
+            transition: all 0.5s ease;
+            display: none;
+        }
+
+        .pet.child .wing, .pet.adult .wing { display: block; }
+        .pet.child .wing.left { top: 4rem; left: 1.5rem; transform: rotate(-30deg); }
+        .pet.child .wing.right { top: 4rem; left: 5.5rem; transform: rotate(30deg); }
+        .pet.adult .wing.left { top: 4rem; left: 1rem; transform: rotate(-30deg); }
+        .pet.adult .wing.right { top: 4rem; left: 6rem; transform: rotate(30deg); }
+        .pet.happy .wing.left { transform: rotate(-45deg); }
+        .pet.happy .wing.right { transform: rotate(45deg); }
+        .pet.sad .wing.left { transform: rotate(0deg); }
+        .pet.sad .wing.right { transform: rotate(0deg); }
+
+        .pet .foot {
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-left: 0.5rem solid transparent;
+            border-right: 0.5rem solid transparent;
+            border-bottom: 1rem solid #ff9800;
+            transition: all 0.5s ease;
+            display: none;
+        }
+
+        .pet.adult .foot { display: block; }
+        .pet.adult .foot.left { top: 7.5rem; left: 3.5rem; }
+        .pet.adult .foot.right { top: 7.5rem; left: 4.5rem; }
+        .pet.sad .foot { transform: translateY(0.8rem); }
+
+        /* 狀態動畫 */
+        .pet.happy { transform: scale(1.1) rotate(5deg); }
+        .pet.sad { transform: scale(0.9); opacity: 0.7; }
+
+        /* 狀態欄 3-3-1 排列 */
+        .stats {
+            margin: 14rem 0 1rem 0; /* 上方留空間給電子雞 */
+            font-size: 1rem;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            text-align: left;
+        }
+
+        .stats p {
+            margin: 0;
+        }
+
+        .stats .score-row {
+            grid-column: 1 / -1; /* 生存時間獨占一行 */
+            text-align: center;
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .actions button {
+            padding: 0.8rem 1.5rem;
+            font-size: 1rem;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            flex: 1 1 30%;
+            min-width: 80px;
+            max-width: 120px;
+        }
+
+        .actions button:hover, .actions button:active {
+            background-color: #45a049;
+        }
+
+        #eventLog {
+            margin-top: 1rem;
+            padding: 0.5rem;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 0.5rem;
+            max-height: 100px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            text-align: left;
+        }
+
+        #eventLog p {
+            margin: 0.2rem 0;
+        }
+
+        @media (max-width: 600px) {
+            .container { padding: 1rem; min-height: 450px; }
+            h1 { font-size: 1.2rem; }
+            .pet { width: 8rem; height: 8rem; top: 2.5rem; }
+            .pet.baby .body { width: 3rem; height: 3rem; top: 2.5rem; left: 2.5rem; }
+            .pet.child .body { width: 4rem; height: 4rem; top: 2rem; left: 2rem; }
+            .pet.adult .body { width: 4.5rem; height: 4.5rem; top: 1.8rem; left: 1.8rem; }
+            .pet .eye { width: 0.7rem; height: 0.7rem; }
+            .pet.baby .eye.left { top: 3rem; left: 3rem; }
+            .pet.baby .eye.right { top: 3rem; left: 4rem; }
+            .pet.child .eye.left { top: 2.8rem; left: 2.8rem; }
+            .pet.child .eye.right { top: 2.8rem; left: 4rem; }
+            .pet.adult .eye.left { top: 2.5rem; left: 2.5rem; }
+            .pet.adult .eye.right { top: 2.5rem; left: 3.8rem; }
+            .pet .beak { top: 4rem; left: 3rem; }
+            .pet .wing { width: 1.5rem; height: 1rem; }
+            .pet.child .wing.left { top: 3.5rem; left: 1rem; }
+            .pet.child .wing.right { top: 3.5rem; left: 4.5rem; }
+            .pet.adult .wing.left { top: 3.5rem; left: 0.8rem; }
+            .pet.adult .wing.right { top: 3.5rem; left: 4.5rem; }
+            .pet .foot { top: 6rem; }
+            .stats { font-size: 0.9rem; gap: 0.3rem; margin-top: 11rem; }
+            .actions button { padding: 0.6rem; font-size: 0.9rem; }
+            #eventLog { font-size: 0.8rem; max-height: 80px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>我的電子雞</h1>
+        <div id="pet" class="pet baby">
+            <div class="body"></div>
+            <div class="eye left"><div class="pupil"></div></div>
+            <div class="eye right"><div class="pupil"></div></div>
+            <div class="beak"></div>
+            <div class="wing left"></div>
+            <div class="wing right"></div>
+            <div class="foot left"></div>
+            <div class="foot right"></div>
+        </div>
+        <div class="stats">
+            <p>飢餓值: <span id="hunger">100</span></p>
+            <p>快樂值: <span id="happiness">100</span></p>
+            <p>健康值: <span id="health">100</span></p>
+            <p>睡眠值: <span id="sleep">100</span></p>
+            <p>清潔度: <span id="cleanliness">100</span></p>
+            <p>智慧: <span id="intelligence">0</span></p>
+            <p class="score-row">生存時間: <span id="score">0</span> 秒</p>
+        </div>
+        <div class="actions">
+            <button id="feedBtn">餵食</button>
+            <button id="playBtn">玩耍</button>
+            <button id="restBtn">休息</button>
+            <button id="cleanBtn">清潔</button>
+            <button id="learnBtn">學習</button>
+            <button id="saveBtn">儲存</button>
+            <button id="loadBtn">載入</button>
+        </div>
+        <div id="eventLog"></div>
+    </div>
+
+    <script>
+        let hunger = 100;
+        let happiness = 100;
+        let health = 100;
+        let sleep = 100;
+        let cleanliness = 100;
+        let intelligence = 0;
+        let score = 0;
+        let growthRate = 5; // 基礎成長速度
+        let isGameRunning = true;
+        let timer;
+
+        const petElement = document.getElementById('pet');
+        const hungerElement = document.getElementById('hunger');
+        const happinessElement = document.getElementById('happiness');
+        const healthElement = document.getElementById('health');
+        const sleepElement = document.getElementById('sleep');
+        const cleanlinessElement = document.getElementById('cleanliness');
+        const intelligenceElement = document.getElementById('intelligence');
+        const scoreElement = document.getElementById('score');
+        const body = document.querySelector('.body');
+        const pupils = document.querySelectorAll('.pupil');
+        const beak = document.querySelector('.beak');
+        const eventLog = document.getElementById('eventLog');
+
+        // 記錄事件到日誌框
+        function logEvent(message) {
+            const logEntry = document.createElement('p');
+            logEntry.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+            eventLog.insertBefore(logEntry, eventLog.firstChild);
+            if (eventLog.children.length > 5) {
+                eventLog.removeChild(eventLog.lastChild);
+            }
+        }
+
+        // 更新狀態顯示與視覺效果
+        function updateStats() {
+            hungerElement.textContent = Math.floor(hunger);
+            happinessElement.textContent = Math.floor(happiness);
+            healthElement.textContent = Math.floor(health);
+            sleepElement.textContent = Math.floor(sleep);
+            cleanlinessElement.textContent = Math.floor(cleanliness);
+            intelligenceElement.textContent = Math.floor(intelligence);
+            scoreElement.textContent = Math.floor(score);
+
+            // 計算成長速度
+            growthRate = 5;
+            if (cleanliness > 70) growthRate += 1;
+            if (intelligence > 50) growthRate += 1;
+
+            // 成長階段
+            petElement.classList.remove('baby', 'child', 'adult');
+            if (score < 100) {
+                petElement.classList.add('baby');
+            } else if (score < 300) {
+                petElement.classList.add('child');
+            } else {
+                petElement.classList.add('adult');
+            }
+
+            // 快樂/悲傷狀態
+            if (hunger < 30 || happiness < 30 || health < 30 || sleep < 30 || cleanliness < 30) {
+                petElement.classList.remove('happy');
+                petElement.classList.add('sad');
+            } else if (hunger > 70 && happiness > 70 && health > 70 && sleep > 70 && cleanliness > 70) {
+                petElement.classList.remove('sad');
+                petElement.classList.add('happy');
+            } else {
+                petElement.classList.remove('happy', 'sad');
+            }
+
+            // 根據智慧值改變眼睛和喙的顏色
+            let pupilColor, beakColor;
+            if (intelligence <= 30) {
+                pupilColor = '#000';
+                beakColor = '#ff9800';
+            } else if (intelligence <= 60) {
+                pupilColor = '#2196F3';
+                beakColor = '#4CAF50';
+            } else {
+                pupilColor = '#9C27B0';
+                beakColor = '#FFD700';
+            }
+            pupils.forEach(pupil => pupil.style.backgroundColor = pupilColor);
+            beak.style.borderTopColor = beakColor;
+
+            // 根據清潔度改變身體顏色
+            let bodyColor;
+            if (cleanliness <= 30) {
+                bodyColor = '#bdbdbd';
+            } else if (cleanliness <= 70) {
+                bodyColor = '#fff9c4';
+            } else {
+                bodyColor = '#ffeb3b';
+            }
+            body.style.backgroundColor = bodyColor;
+        }
+
+        // 防抖函數
+        function debounce(func, wait) {
+            let timeout;
+            return function() {
+                clearTimeout(timeout);
+                timeout = setTimeout(func, wait);
+            };
+        }
+
+        // 餵食功能
+        function feed() {
+            if (hunger < 100) {
+                hunger = Math.min(100, hunger + 20);
+                health = Math.min(100, health + 5);
+                sleep = Math.max(0, sleep - 5);
+                petElement.style.transform = '';
+                petElement.style.transform = 'scale(1.1)';
+                logEvent('餵食：飢餓值 +20，健康值 +5，睡眠值 -5');
+                setTimeout(() => {
+                    petElement.style.transform = '';
+                    updateStats();
+                }, 500);
+            }
+        }
+
+        // 玩耍功能
+        function play() {
+            if (happiness < 100) {
+                happiness = Math.min(100, happiness + 20);
+                health = Math.min(100, health + 5);
+                sleep = Math.max(0, sleep - 10);
+                petElement.style.transform = '';
+                petElement.style.transform = 'rotate(15deg)';
+                logEvent('玩耍：快樂值 +20，健康值 +5，睡眠值 -10');
+                setTimeout(() => {
+                    petElement.style.transform = '';
+                    updateStats();
+                }, 500);
+            }
+        }
+
+        // 休息功能
+        function rest() {
+            if (sleep < 100) {
+                sleep = Math.min(100, sleep + 20);
+                health = Math.min(100, health + 10);
+                hunger = Math.max(0, hunger - 5);
+                petElement.style.opacity = '';
+                petElement.style.opacity = '0.5';
+                logEvent('休息：睡眠值 +20，健康值 +10，飢餓值 -5');
+                setTimeout(() => {
+                    petElement.style.opacity = '1';
+                    updateStats();
+                }, 500);
+            }
+        }
+
+        // 清潔功能
+        function clean() {
+            if (cleanliness < 100) {
+                cleanliness = Math.min(100, cleanliness + 20);
+                health = Math.min(100, health + 5);
+                petElement.style.transform = '';
+                petElement.style.transform = 'scale(1.05)';
+                logEvent('清潔：清潔度 +20，健康值 +5');
+                setTimeout(() => {
+                    petElement.style.transform = '';
+                    updateStats();
+                }, 500);
+            }
+        }
+
+        // 學習功能
+        function learn() {
+            if (intelligence < 100) {
+                intelligence = Math.min(100, intelligence + 10);
+                sleep = Math.max(0, sleep - 15);
+                happiness = Math.max(0, happiness - 5);
+                petElement.style.transform = '';
+                petElement.style.transform = 'rotate(-10deg)';
+                logEvent('學習：智慧 +10，睡眠值 -15，快樂值 -5');
+                setTimeout(() => {
+                    petElement.style.transform = '';
+                    updateStats();
+                }, 500);
+            }
+        }
+
+        // 狀態隨時間下降（每秒更新）
+        function decreaseStats() {
+            if (!isGameRunning) return;
+            hunger = Math.max(0, hunger - 1);
+            happiness = Math.max(0, happiness - 1);
+            health = Math.max(0, health - (hunger < 30 || sleep < 30 || cleanliness < 30 ? 2 : 0.4));
+            sleep = Math.max(0, sleep - 0.6);
+            cleanliness = Math.max(0, cleanliness - 1);
+            score += growthRate / 5;
+            updateStats();
+
+            if (health <= 0) {
+                isGameRunning = false;
+                clearInterval(timer);
+                logEvent(`遊戲結束！生存時間：${Math.floor(score)} 秒`);
+                resetGame();
+            }
+        }
+
+        // 儲存進度
+        function save() {
+            const data = { hunger, happiness, health, sleep, cleanliness, intelligence, score };
+            localStorage.setItem('tamagotchiData', JSON.stringify(data));
+            logEvent('進度已儲存');
+            updateStats();
+        }
+
+        // 載入進度
+        function load() {
+            const data = JSON.parse(localStorage.getItem('tamagotchiData'));
+            if (data) {
+                hunger = data.hunger;
+                happiness = data.happiness;
+                health = data.health;
+                sleep = data.sleep;
+                cleanliness = data.cleanliness;
+                intelligence = data.intelligence;
+                score = data.score;
+                isGameRunning = true;
+                startTimer();
+                logEvent('進度已載入');
+                updateStats();
+            } else {
+                logEvent('沒有找到儲存的進度');
+            }
+        }
+
+        // 重置遊戲
+        function resetGame() {
+            hunger = 100;
+            happiness = 100;
+            health = 100;
+            sleep = 100;
+            cleanliness = 100;
+            intelligence = 0;
+            score = 0;
+            growthRate = 5;
+            isGameRunning = true;
+            startTimer();
+            logEvent('遊戲已重置');
+            updateStats();
+        }
+
+        // 啟動計時器（每秒更新）
+        function startTimer() {
+            clearInterval(timer);
+            timer = setInterval(decreaseStats, 1000);
+        }
+
+        // 暫停計時器（頁面隱藏時）
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                isGameRunning = false;
+                clearInterval(timer);
+                logEvent('遊戲暫停（頁面隱藏）');
+            } else if (!isGameRunning && health > 0) {
+                isGameRunning = true;
+                startTimer();
+                logEvent('遊戲恢復');
+            }
+        });
+
+        // 自然化移動
+        function naturalWalk() {
+            if (!isGameRunning) return;
+            const maxMove = 40; // 最大移動範圍（像素）
+            const moveDistance = (Math.random() - 0.5) * maxMove * 2; // -40 到 +40
+            const duration = 1 + Math.random() * 2; // 1-3 秒
+            petElement.style.transition = `left ${duration}s ease-in-out`;
+            petElement.style.left = `calc(50% + ${moveDistance}px)`;
+            setTimeout(naturalWalk, duration * 1000); // 下一次移動
+        }
+
+        // 事件監聽器（防抖）
+        document.getElementById('feedBtn').addEventListener('click', debounce(feed, 700));
+        document.getElementById('playBtn').addEventListener('click', debounce(play, 700));
+        document.getElementById('restBtn').addEventListener('click', debounce(rest, 700));
+        document.getElementById('cleanBtn').addEventListener('click', debounce(clean, 700));
+        document.getElementById('learnBtn').addEventListener('click', debounce(learn, 700));
+        document.getElementById('saveBtn').addEventListener('click', save);
+        document.getElementById('loadBtn').addEventListener('click', load);
+
+        // 初始化
+        startTimer();
+        updateStats();
+        naturalWalk(); // 啟動自然移動
+    </script>
+</body>
+</html>
